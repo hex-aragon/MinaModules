@@ -771,3 +771,5 @@ some things about group extensions and field extensions as well so this is it fo
 let this sync we're gonna go through a bunch of examples in the following videos and we're going to take this long
 turn it's a long curve and we'll rejoin Starks in a couple of videos time okay
 thank you for watching and feel free to watch again as many times as you want okay goodbye
+
+## 원본링크: https://www.youtube.com/watch?v=BtRIDyue0fA&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=5
