@@ -24,8 +24,8 @@
 
 이 비디오에서는 필드의 기본 개념과 몇 가지 예제에 대해 논의했습니다. 다음 비디오에서는 필드의 더 심화된 주제들, 특히 유한 필드와 그 응용에 대해 논의할 것입니다. 함께 공부해 주셔서 감사합니다. 다음 비디오에서 뵙겠습니다. 안녕히 계세요.
 
-![mina_field1](./mina_field1.png)
-![mina_field2](./mina_field2.png)
+![mina_field1](./01_mina_field1.png)
+![mina_field2](./01_mina_field2.png)
 
 ## 영문 :
 
@@ -438,4 +438,4 @@ in the next video we're going to dive a little bit deeper into this and it's goi
 so I hope you enjoyed this video you can just take a look at it
 times you want and we'll see you in the next one okay goodbye
 
-출처 : https://www.youtube.com/watch?v=MAhmV_omOwA&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=11
+## 원본 링크 : https://www.youtube.com/watch?v=MAhmV_omOwA&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=11

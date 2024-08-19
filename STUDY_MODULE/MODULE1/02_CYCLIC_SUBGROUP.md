@@ -50,6 +50,9 @@
 
 오늘은 여기까지입니다. 다음 비디오에서는 단위근을 보다 심도 있게 탐구하고, 빠른 푸리에 변환과 그 응용에 대해 다룰 것입니다. 함께해 주셔서 감사합니다. 다음 비디오에서 뵙겠습니다.
 
+![02_cyclic_subgroup1](./02_cyclic_subgroup1.png)
+![02_cyclic_subgroup2](./02_cyclic_subgroup2.png)
+
 ## 영문 :
 
 foreign this uh episode we're gonna discuss
