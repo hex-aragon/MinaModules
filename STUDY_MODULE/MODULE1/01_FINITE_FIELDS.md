@@ -1,5 +1,7 @@
 # FINITE FIELDS
 
+## 한글:
+
 안녕하세요 여러분, 이 비디오에서는 필드(field)에 대해 이야기할 것입니다. 필드는 우리가 숫자의 개념을 확장하고자 할 때 도움이 되는 수학적 구조입니다. 우리는 보통 실수(real number), 유리수(rational number), 그리고 때로는 복소수(complex number)를 다루곤 합니다. 이들은 모두 필드의 예입니다. 여러분은 이미 실수, 즉 실수의 필드와 친숙할 것입니다. 고등학교에서 유리수에 대해 배우면서 이 개념에 대해 다룬 적이 있을 겁니다. 그리고 일부 분들은 아마 대학교 또는 고등학교 때 복소수를 다룬 경험이 있을 것입니다.
 
 이제 우리는 필드의 개념을 보다 일반적으로 논의할 것이며, 특히 다항식을 필드 상에서 다룰 때 필드가 어떻게 도움이 되는지를 설명할 것입니다. 요컨대, 필드는 숫자의 개념을 확장하는 시스템 또는 집합이라고 할 수 있습니다. 여기서 '숫자'라는 용어가 여러분에게 더 친숙할 수 있지만, 우리는 필드를 구성하는 요소들이 우리가 알고 있는 숫자들로 확장된다는 것을 강조하고자 합니다. 그렇다면 필드란 무엇일까요? 우리는 필드를 정의할 필요가 있습니다.
@@ -25,9 +27,8 @@
 ![mina_field1](./mina_field1.png)
 ![mina_field2](./mina_field2.png)
 
-출처 : https://www.youtube.com/watch?v=MAhmV_omOwA&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=11
+## 영문 :
 
-원본:
 Introduction
 so hello everybody uh in this video we're going to talk about fields
 um a field is a mathematical structure that comes in help when we want to
@@ -436,3 +437,5 @@ within the same conversation and this is it for now I guess
 in the next video we're going to dive a little bit deeper into this and it's going to be a lot of fun
 so I hope you enjoyed this video you can just take a look at it
 times you want and we'll see you in the next one okay goodbye
+
+출처 : https://www.youtube.com/watch?v=MAhmV_omOwA&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=11

@@ -1,6 +1,7 @@
 # CYCLIC SUBGROUP
 
-한글:
+## 한글:
+
 안녕하세요, 이번 에피소드에서는 순환 부분군(cyclic subgroups), 페르마의 소정리(Fermat's Little Theorem), 그리고 단위근(roots of unity)에 대해 논의할 것입니다.
 
 먼저, 그룹이 무엇인지 복습해 봅시다.
@@ -49,10 +50,8 @@
 
 오늘은 여기까지입니다. 다음 비디오에서는 단위근을 보다 심도 있게 탐구하고, 빠른 푸리에 변환과 그 응용에 대해 다룰 것입니다. 함께해 주셔서 감사합니다. 다음 비디오에서 뵙겠습니다.
 
-원본 링크:
-https://www.youtube.com/watch?v=UIhhs38IAGM&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=5
+## 영문 :
 
-영문 원본:
 foreign this uh episode we're gonna discuss
 cyclic subgroups for much little theorem and something about uproots of unity okay
 so um let's recall what a group is
@@ -560,3 +559,7 @@ okay once we get to know that we'll be able to
 um talk about low degree testing which is a very important thing in
 cryptography okay so this is it for now hope you enjoyed the video and uh we'll
 be back soon okay see you in the next one foreign
+
+## 원본 링크:
+
+https://www.youtube.com/watch?v=UIhhs38IAGM&list=PLFX2cij7c2PynTNWDBzmzaD6ij170ILbQ&index=5
