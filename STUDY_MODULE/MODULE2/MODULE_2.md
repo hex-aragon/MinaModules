@@ -31,9 +31,9 @@ For a deeper mathematical understanding, you can check [Hoffstein's Book Chapter
 
 ## Hash Functions
 
-A hash function takes an input and returns a fixed-size string of bytes. **SHA-256** and **Poseidon** are popular cryptographic hash functions in our context, with Poseidon specifically designed for arithmetic-friendly operations, benefiting certain applications in blockchains.
+해시 함수는 입력을 받아 고정된 크기의 바이트 문자열을 반환합니다. 현재 널리 사용되는 암호화 해시 함수는 **SHA-256**과 **포세이돈**이며, 특히 포세이돈은 산술 친화적인 연산을 위해 설계되어 블록체인의 특정 애플리케이션에 유용합니다.
 
-The primary characteristics of a good hash function are [preimage resistance](https://en.wikipedia.org/wiki/Preimage_attack), second preimage resistance, and [collision resistance](https://en.wikipedia.org/wiki/Collision_resistance), ensuring data security and integrity. In blockchain technology, hash functions create an unalterable, unique representation of each block's content, contributing to the immutability and transparency of the system.
+좋은 해시 함수의 주요 특징은 데이터 보안과 무결성을 보장하는 [사전 이미지 저항](https://en.wikipedia.org/wiki/Preimage_attack), [2차 사전 이미지 저항], [충돌 저항](https://en.wikipedia.org/wiki/Collision_resistance)입니다. 블록체인 기술에서 해시 함수는 각 블록의 콘텐츠를 변경할 수 없는 고유한 표현을 생성하여 시스템의 불변성과 투명성에 기여합니다.
 
 Explore these resources to further your understanding:
 
@@ -43,18 +43,18 @@ Explore these resources to further your understanding:
 
 ## Merkle Trees
 
-Merkle Trees are very essential on Mina Protocol, most of the people use that beautiful tool for their smart contracts and zkApps. We ask for a little bit more patience about all this theoretical parts - soon you will be using this Merkle Trees too!
+머클 트리는 미나 프로토콜에서 매우 필수적이며, 대부분의 사람들이 스마트 컨트랙트와 zkApp에 이 아름다운 도구를 사용합니다. 이 모든 이론적인 부분에 대해 조금만 더 기다려주세요 - 곧 여러분도 이 머클 트리를 사용하게 될 것입니다!
 
 - [How Merkle Trees Enable the Decentralized Web! ](https://www.youtube.com/watch?v=3giNelTfeAk)
 - [Merkle Tree by Mina Protocol](https://docs.minaprotocol.com/zkapps/o1js/merkle-tree)
 
 ## Digital Signatures
 
-Digital signatures ensure the integrity and authenticity of digital messages or documents. By providing a means to verify the origin and confirm that the content has not been altered, digital signatures play a pivotal role in maintaining trust in digital communications.
+디지털 서명은 디지털 메시지나 문서의 무결성과 신뢰성을 보장합니다. 디지털 서명은 출처를 확인하고 콘텐츠가 변경되지 않았음을 확인할 수 있는 수단을 제공함으로써 디지털 커뮤니케이션의 신뢰를 유지하는 데 중추적인 역할을 합니다.
 
-In Public Key Cryptography, anyone can encrypt their message with receiver's public key, which can be decrypted by the reciever's priate key only. Besides that, signer can generate a signature for a message using their private key, which can be used to validate that message is from some specific public key (sender, in this case).
+공개 키 암호화에서는 누구나 수신자의 공개 키로 메시지를 암호화할 수 있으며, 이는 수신자의 고유 키로만 해독할 수 있습니다. 또한 서명자는 자신의 개인 키를 사용하여 메시지에 대한 서명을 생성할 수 있으며, 이 서명은 특정 공개 키(이 경우 발신자)의 메시지인지 확인하는 데 사용할 수 있습니다.
 
-In Public Key Cryptography, anyone can encrypt their message with the receiver's public key, and only the receiver can decrypt the message with their private key. In digital signatures, on the other hand, if a signer generates a signature for a message using their private key, anyone can validate it using the signer's public key. Therefore, the message of the signature is made public, which distinguishes it from cryptographic commitments.
+공개 키 암호화에서는 누구나 수신자의 공개 키로 메시지를 암호화할 수 있으며, 수신자만 자신의 개인 키로 메시지를 해독할 수 있습니다. 반면 디지털 서명에서는 서명자가 자신의 개인 키를 사용하여 메시지에 대한 서명을 생성하면 누구나 서명자의 공개 키를 사용하여 서명의 유효성을 검사할 수 있습니다. 따라서 서명의 메시지는 공개되므로 암호화 약정과는 구별됩니다.
 
 - [What are Digital Signatures? - Computerphile](https://www.youtube.com/watch?v=s22eJ1eVLTU)
 - [Digital Signature Algorithm (DSA) - Cryptography ](https://www.youtube.com/watch?v=iS1nK4G6EtA)
