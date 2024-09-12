@@ -54,8 +54,6 @@ Explore these resources to further your understanding:
 
 공개 키 암호화에서는 누구나 수신자의 공개 키로 메시지를 암호화할 수 있으며, 이는 수신자의 고유 키로만 해독할 수 있습니다. 또한 서명자는 자신의 개인 키를 사용하여 메시지에 대한 서명을 생성할 수 있으며, 이 서명은 특정 공개 키(이 경우 발신자)의 메시지인지 확인하는 데 사용할 수 있습니다.
 
-공개 키 암호화에서는 누구나 수신자의 공개 키로 메시지를 암호화할 수 있으며, 수신자만 자신의 개인 키로 메시지를 해독할 수 있습니다. 반면 디지털 서명에서는 서명자가 자신의 개인 키를 사용하여 메시지에 대한 서명을 생성하면 누구나 서명자의 공개 키를 사용하여 서명의 유효성을 검사할 수 있습니다. 따라서 서명의 메시지는 공개되므로 암호화 약정과는 구별됩니다.
-
 - [What are Digital Signatures? - Computerphile](https://www.youtube.com/watch?v=s22eJ1eVLTU)
 - [Digital Signature Algorithm (DSA) - Cryptography ](https://www.youtube.com/watch?v=iS1nK4G6EtA)
 
