@@ -111,3 +111,567 @@ Now think about the equation
 이제 보시다시피 부울 회로와 매우 유사합니다. 곱셈과 덧셈 연산은 게이트로 표현됩니다. 방정식과 변수가 훨씬 더 많으면 입력을 만족하는 회로, 즉 '문'을 얻을 수 있습니다.
 
 이제 실제로 확인해 보겠습니다. 피보나치 수열은 산술 회로로 구성할 수 있으며, 각 단계에서 계산이 제대로 수행되는지 증명할 수 있습니다. 이는 미나 프로토콜의 기본 zkSNARK 메커니즘 덕분입니다.
+
+# Zk Fibonacci
+
+먼저 요소를 보관하는 객체로 시작하는 것이 현명합니다. Struct가 이러한 목적에 적합합니다. Struct를 사용하면 zkCircuits에서 사용할 수 있는 복합 데이터 유형을 만들 수 있습니다. 이것이 왜 필요할까요? 이전 파트에서 보았듯이 기반 부분의 미나 프로토콜은 회로로 작동하며, 입력이 유한 필드 요소인 (거의) 모든 것이 회로화되어 있습니다. 이를 위해 o1js의 Struct 클래스를 사용해야 합니다. zkCircuits를 구축하는 데 사용되는 추상 클래스(또는, 타입)를 증명 가능한 타입이라고 합니다. 회로에서 증명을 구축하는 데 사용되므로 '증명 가능'하므로 증명 가능이라고 합니다.
+
+이제 피보나치.ts 파일로 계속 진행하겠습니다:
+
+```
+import { Field, Struct, state, method, ZkProgram, SelfProof, State, SmartContract} from 'o1js';
+
+export class Pair extends Struct ({
+  first: Field,
+  second: Field,
+}) {
+  constructor(first: Field, second: Field) {
+    super({ first, second });
+    this.first = first;
+    this.second = second;
+  }
+};
+```
+
+지금까지 사용한 클래스 외에 다음에서 사용할 클래스가 추가됩니다. 여기서 사용하는 필드 객체는 암호의 근간이 되는 수학적 객체입니다. 유한 필드에 대한 자세한 이론적 내용은 나중에 김치북을 참고하세요.
+
+이제 요소를 담을 컨테이너가 생겼으니, 마법의 ZkProgram이 시작됩니다! ZkProgram 및 자체 증명 클래스를 가져온 다음, 이 코드를 피보나치.ts 파일에 추가합니다:
+
+```
+export const FibonacciSequence = ZkProgram({
+  name: "fibonacci-sequence",
+  publicOutput: Pair,
+
+  methods: {
+    baseCase: {
+      privateInputs: [],
+
+      async method() {
+        return new Pair(Field(1), Field(1));
+      },
+    },
+
+    step: {
+      privateInputs: [SelfProof],
+
+      async method(earlierProof: SelfProof<Pair, Pair>) {
+        earlierProof.verify();
+
+        const numbers = earlierProof.publicOutput;
+
+        return new Pair(numbers.second, numbers.first.add(numbers.second));
+      },
+    },
+  },
+});
+```
+
+ZkProgram은 미나 프로토콜을 구동하는 도구 중 하나인 피클의 높은 수준의 추상화이며, zkSNARK를 구축하는 데 도움이 됩니다. ZkProgram을 사용하면 유연한 방식으로 재귀적으로 zkSNARK 증명을 구축할 수 있습니다. ZkProgram에 정의된 메서드는 비동기여야 합니다. ZkProgram의 이름을 지정하고 메서드 앞에 공개 또는 비공개 출력 유형을 정의할 수 있습니다. 선택에 따라 ZkProgram에 비공개 또는 공개 입력으로 입력을 제공할 수 있습니다. 결과적으로 수행한 연산에 대한 증명과 대중에게 노출하려는 공개 출력을 얻을 수 있습니다.
+
+우리의 경우 피보나치 수열의 계산 결과뿐만 아니라 그것이 올바르게 계산되었다는 증명도 필요합니다. 또한 재귀적으로 수행 단계를 늘릴 수 있으므로 모든 단계에서 이전 단계의 출력과 생성된 증명을 사용하여 다음 단계를 계산하고 다음 증명을 생성할 수 있습니다. 현재 증명을 다음 증명에서 검증할 수 있으며 지금까지 수행한 계산의 증명을 재귀적으로 생성할 수 있습니다.
+
+```
+await FibonacciSequence.compile();
+
+export class FibonacciSequenceProof extends ZkProgram.Proof(FibonacciSequence) {};
+
+export class Fibonacci extends SmartContract {
+  @state(Field) number1 = State<Field>();
+  @state(Field) number2 = State<Field>();
+
+  async init() {
+    super.init();
+    this.number1.set(Field(1));
+    this.number2.set(Field(1));
+  };
+
+  @method async update(
+    proof: FibonacciSequenceProof
+  ) {
+    proof.verify();
+
+    // To make sure our sequence always gets bigger
+    proof.publicOutput.first.assertGreaterThan(this.number1.getAndRequireEquals()); // This assertion does not result in a concurrency issue. We always accept the biggest order sequence TX in a block. See the README.md for more details.
+
+    this.number1.set(proof.publicOutput.first);
+    this.number2.set(proof.publicOutput.second);
+  };
+
+};
+
+
+```
+
+ZkProgram을 구성한 후에는 .compile() 메서드를 사용하여 컴파일하는 것이 중요합니다. 이 컴파일은 코드를 기계어 코드로 컴파일하는 것과는 달리, ZkProgram을 zk 회로로 만드는 데 사용됩니다. 컴파일이 완료되면 FibonacciSequenceProof 클래스를 정의합니다. 왜 그럴까요? ZkProgram이 어떻게 공개값과 증명을 출력으로 갖는지 기억하시나요? ZkProgram.Proof를 통해 이전에 정의한 피보나치수열 ZkProgram의 속성을 확장하는 클래스를 정의할 수 있습니다. 수행된 실행 증명을 정산하기 위해 스마트 콘트랙트에서 해당 증명을 사용할 수 있습니다. 이제 이 단계가 중요하며, 나중에 이에 대해 조금 더 설명하겠습니다. 여러분 또는 상호작용한 상대방의 계산을 정산하려면 SmartContract 클래스를 사용할 수 있습니다. 코드의 테스트를 작성하기 전에 index.ts를 열고 작성하세요:
+
+이제 우리가 여기서 한 일을 살펴봅시다:
+
+증명 활성화 옵션은 로컬블록체인에서 사용됩니다. 로컬블록체인은 미나 블록체인의 시뮬레이션이며 테스트 목적으로 설계되었습니다. proofsEnabled가 참이면 로컬 체인에서 zk 증명을 사용할 수 있습니다. 거짓으로 설정하면 일반성을 잃지 않고 테스트 프로세스 속도를 높일 수 있습니다. 정의된 변수는 트랜잭션에 사용될 배포자/발신자 계정과 해당 개인 키입니다. ZkApp, zkAppAddress/PrivateKey는 미나 블록체인에 존재할 ZkApp의 변수입니다. 피보나치 계산을 시작하기 전에 로컬 변수로 정의한 체인별 미나 블록체인의 활성 인스턴스를 설정합니다. 그런 다음 생성한 주소로 피보나치 스마트 컨트랙트의 zkApp을 생성해야 합니다.
+
+```
+  async function localDeploy() {
+    const txn = await Mina.transaction(deployerAccount, async () => {
+      AccountUpdate.fundNewAccount(deployerAccount);
+      zkApp.deploy();
+    });
+    await txn.prove();
+    // this tx needs .sign(), because `deploy()` adds an account update that requires signature authorization
+    await txn.sign([deployerKey, zkAppPrivateKey]).send();
+  }
+```
+
+그런 다음 zkapp을 체인에 배포하기 위한 함수(블록 설명 안에)를 정의합니다. 배포는 트랜잭션으로 이루어지며, 트랜잭션은 블록체인에 상태 변경을 일으킵니다. 트랜잭션에서 AccountUpdate라는 클래스를 볼 수 있습니다. 블록체인의 계정에 대한 업데이트는 이 클래스로 처리됩니다.
+
+미나 블록체인에서 계정 생성은 1 $MINA로 공급됩니다. zkApp을 생성하려면 계정으로 1달러 미나를 지불합니다. 트랜잭션을 설계한 후 트랜잭션에 서명하고 전송합니다.
+
+```
+ it('generates and deploys the `Fibonacci` smart contract', async () => {
+    await localDeploy();
+    const number1State = zkApp.number1.get();
+    const number2State = zkApp.number2.get();
+
+    expect(number1State).toEqual(Field(1));
+    expect(number2State).toEqual(Field(1));
+  });
+
+  it('correctly updates the state on the `Fibonacci` smart contract', async () => {
+    const count = 3; // We will calculate the 4th element of the sequence
+
+    let proof = await FibonacciSequence.baseCase();
+    let number1 = Field(1);
+    let number2 = Field(1);
+
+    for (let i = 0; i < count; i++) {
+      console.log(`The ${i + 2}. element of the Fibonacci sequence is ${number2.toBigInt()}`)
+      proof = await FibonacciSequence.step(proof);
+
+      const temp = number2;
+      number2 = number1.add(number2);
+      number1 = temp;
+    }
+
+    // update transaction
+    const txn = await Mina.transaction(senderAccount, async () => {
+      zkApp.update(new FibonacciSequenceProof(proof));
+    });
+    await txn.prove();
+    await txn.sign([senderKey]).send();
+
+    const number1State = zkApp.number1.get();
+    const number2State = zkApp.number2.get();
+
+    expect(number1State).toEqual(number1);
+    expect(number2State).toEqual(number2);
+
+    console.log(`The ${count + 2}. element of the Fibonacci sequence is ${number2State.toString()}`);
+  });
+});
+```
+
+마지막으로 위의 테스트를 추가하면 프로그램이 종료됩니다. 첫 번째 테스트 블록에서는 피보나치 zkApp을 초기화하고 숫자1과 숫자2의 상태가 기본 케이스와 같은지 확인합니다. 두 번째 블록에서는 피보나치수열의 기본 케이스에 대한 증명을 얻습니다. 그런 다음 이를 4번 반복하면 피보나치수열의 4번째 원소를 재귀적으로 구할 수 있습니다.
+
+단계 방식에서는 각 단계에서 증명이 검증된다는 점을 기억하세요. 따라서 이를 사용하면 증명을 생성하고 검증된 방식으로 계산 결과를 얻을 수 있습니다. 코드를 완료한 후 컨트랙트 폴더로 들어가 터미널로 이동하여 이 마법의 단계로 이동하세요:
+
+```
+npm run test
+```
+
+약 1.5분 정도 기다리세요. 그러면 피보나치 수열 계산기가 작동하는 것을 확인할 수 있습니다! 이제 친구와의 신뢰 문제를 극복했습니다. 어떻게요? 신뢰할 수 없는 시스템을 사용합니다.
+
+# Mina Protocol
+
+이 페이지에서는 미나 프로토콜에 대한 자료와 정보, 그리고 미나 프로토콜이 어떻게 다른지/왜 다른지에 대한 정보를 제공합니다.
+
+# Mina Overview
+
+```
+미나는 고대 그리스에서 무게와 화폐의 단위로 사용되었습니다. 더 이상 사용되지는 않지만 간결함, 기술, 더 많은 프라이버시를 추가하여 그 위대한 후예인 미나 프로토콜을 만들었습니다. -예실리트, 야신 버크.
+```
+
+o1js API를 보여드리기 전에 미나 프로토콜의 속성과 다른 체인과의 차이점을 명확히 설명하는 몇 가지 자료를 공유하고자 합니다. 미나를 이해하려면 합의 메커니즘, 증명 시스템 및 SNARK 작업자가 무엇인지부터 시작하는 것이 좋습니다. 플롱크나 김치에 대해 깊이 파고들 필요는 없습니다. ZK 배경이 없는 분들에게는 흑마술과도 같기 때문입니다. 휴. 기사에서 링크한 자료까지 모두 읽느라 지치셨을 텐데요. 하지만 미나가 왜 스스로를 상수 크기 블록체인으로 정의하는지 이해하게 되었을 것입니다. 또한 Zk Circuits 등에 대한 기억을 되살리는 시간을 가졌을 것입니다.
+
+다른 생태계에서 오신 분이라면 해당 체인에 토큰 주소 또는 스마트 컨트랙트 주소라고 불리는 객체가 있다는 것을 알고 계실 것입니다. 미나 프로토콜에서는 스마트 컨트랙트 클래스에서 사용할 공개 키(ZkApp 키)와 검증 키를 생성할 수 있게 함으로써 유사한 속성을 사용할 수 있습니다. 미나에 스마트 컨트랙트를 배포하는 것은 용어상 ZkApp이라고 하는 제로 지식 앱이 되는 것입니다. ZkApp 계정은 다른 체인과도 다르며, 이는 문서에 설명되어 있습니다.
+
+# zkApp docs
+
+- https://docs.minaprotocol.com/zkapps/writing-a-zkapp
+
+# What are zkApps ?
+
+zkApp(영지식 앱)은 영지식 증명으로 구동되는 미나 프로토콜 스마트 컨트랙트로, 특히 zk-SNARK를 사용합니다. zkApp은 오프체인 실행과 대부분 오프체인 상태 모델을 사용합니다. 이 아키텍처는 비공개 또는 공개가 가능한 프라이빗 연산과 상태를 허용합니다. zkApp은 임의로 복잡한 연산을 오프체인에서 수행할 수 있으며, 이 연산에 대한 검증을 위해 영지식 증명을 체인으로 전송하는 데 고정 수수료만 부과합니다. 이러한 비용 절감 효과는 온체인에서 연산을 실행하고 가변 가스비 기반 모델을 사용하는 다른 블록체인과 대조적입니다.
+
+# o1js
+
+이제부터는 미나 커뮤니티의 실제 프로젝트 예제를 통해 o1js를 소개하겠습니다. 이 모듈의 첫 페이지에서는 증명 가능한 피보나치 수열인 o1js 프레임워크를 사용하여 첫 번째 애플리케이션을 만들었습니다. 여기서 클래스와 일부 API에 대해 설명했지만, 실제 프로젝트의 예제를 통해 더 잘 설명하는 것이 좋습니다. 누구나 알아야 할 기본적인 클래스가 끝나면 API의 일부 고급/추가적인 부분이 나옵니다. 모두 알 필요는 없지만, 알면 응용 프로그램에서 원하는 만큼 유연하게 사용할 수 있습니다. 다음 챕터를 시작하기 전에 미나 플레이그라운드 연습 문제를 훑어보는 것을 추천합니다. 원활한 소개가 될 것입니다.
+
+# smart contract
+
+```
+import {
+  Field,
+  SmartContract,
+  state,
+  State,
+  method,
+  Poseidon,
+  PublicKey,
+} from 'o1js';
+
+export class Quest extends SmartContract {
+  @state(Field) commitment = State<Field>();
+
+  @method async init() {
+    super.init();
+    this.commitment.set(Field(0));
+  }
+
+  @method async initialize(commitment: Field) {
+    // ensure commitment is not yet set
+    this.commitment.requireEquals(Field(0));
+
+    // set the commitment
+    this.commitment.set(commitment);
+  }
+
+  @method async solve(solution: Field, prize_receiver: PublicKey) {
+    this.account.balance.requireEquals(this.account.balance.get());
+    const currentState = this.commitment.getAndRequireEquals();
+
+    // check if user knows the solution
+    currentState.equals(Poseidon.hash([solution])).assertTrue();
+
+    // proceed with the withdrawal
+    this.send({ to: prize_receiver, amount: this.self.account.balance.get() });
+  }
+}
+```
+
+위의 예는 간단합니다: 필드 타입을 가진 온체인 상태가 있습니다. init으로 컨트랙트를 초기화한 후, 사용자가 피드한 값으로 '초기화'됩니다.
+
+Solve 함수는 zkApp 계정의 잔액의 온체인 값이 환경과 동일한지 확인합니다. 또한 현재 커미션의 상태가 환경과 동일한지 확인합니다. 나중에 솔루션은 해시로 제공되고 상금은 수신자에게 전송됩니다.
+
+SmartContract 기반 클래스가 zkCircuits로 컴파일된다는 것을 기억하시나요? 이 requireEquals, getAndRequireEquals 함수 및 이와 유사한 함수는 zk Circuits를 형성하는 몇 가지 제약 조건으로 변환됩니다.
+
+# ZKProgram
+
+ZkProgram을 사용하면 재귀적이고 점진적으로 검증 가능한 계산 zkSNARK 회로를 작성할 수 있습니다. 이것이 의미하는 바는 이렇습니다: 비공개/공개 입력을 선택하고, 계산할 메서드를 작성하고, 증명과 함께 공개 출력을 얻습니다. 또한, 메서드에서 수행하는 모든 단계에는 계산이 점진적으로 검증되도록 이전 단계의 증명이 필요합니다. 모든 단계는 이전 단계에 의존하기 때문에 이전 증명이 어떻게든 최신 증명에 캡슐화되는 재귀적 시스템입니다.
+
+31 𝑡 ℎ 세 번째 단계에 도달하려면 30 𝑡 ℎ 세 번째 단계와 29, 28...을 계산해야 합니다. 각 단계를 증명하고 다음 단계로 이동했으므로 Mina 문서에서는 코드 예제와 함께 ZkProgram의 더 많은 속성이 제공됩니다.
+
+choz에서 재귀가 어떻게 사용되는지 확인해 보겠습니다. 전체 파일을 볼 수 있습니다. 여기서는 점수 계산만 재귀적으로 작성된 ZkProgram 부분을 공유하겠습니다.
+
+```
+export const CalculateScore = ZkProgram({
+    name: "calculate-score",
+    publicInput: Field,
+    publicOutput: PublicOutputs,
+
+    methods: {
+        baseCase: {
+            privateInputs: [Field, Field, Field],
+
+            /* async */method(secureHash: Field, answers: Field, userAnswers: Field, index: Field) {
+                index.mul(INDEX_MULTIPLIER).assertEquals(1);
+                secureHash.assertEquals(Poseidon.hash([answers, userAnswers, index]));
+
+                return new PublicOutputs(UInt240.from(INITIAL_CORRECTS), UInt240.from(INITIAL_INCORRECTS));
+            },
+        },
+
+        calculate: {
+            privateInputs: [SelfProof, Field, Field, Field],
+
+            /* async */method (
+                secureHash: Field,
+                earlierProof: SelfProof<Field, PublicOutputs>,
+                answers: Field,
+                userAnswers: Field,
+                index: Field
+            ) {
+                earlierProof.verify();
+
+                earlierProof.publicInput.assertEquals(Poseidon.hash([answers, userAnswers, index.div(INDEX_MULTIPLIER)]));
+                secureHash.assertEquals(Poseidon.hash([answers, userAnswers, index]));
+
+
+
+                const publicOutputs = earlierProof.publicOutput;
+
+                const i = UInt240.from(index);
+
+                const a = UInt240.from(answers);
+                const ua = UInt240.from(userAnswers);
+
+                const remainderOfAnswers = a.div(i).mod(ANSWER_DIVISOR).toField();
+                const remainderOfUserAnswers = ua.div(i).mod(ANSWER_DIVISOR).toField();
+
+                const equation = remainderOfAnswers.equals(BLANK_VALUE).not().and(remainderOfAnswers.equals(remainderOfUserAnswers));
+
+                const newPublicOutput = Provable.if (
+                    equation,
+                    PublicOutputs,
+                    new PublicOutputs(earlierProof.publicOutput.corrects.add(1), earlierProof.publicOutput.incorrects),
+                    new PublicOutputs(earlierProof.publicOutput.corrects, earlierProof.publicOutput.incorrects.add(1)),
+                );
+                return new PublicOutputs(newPublicOutput.corrects, newPublicOutput.incorrects);
+            },
+        },
+    },
+});
+```
+
+여기에서는 공개 입력과 출력을 지정했습니다. 모든 메서드에는 이전 계산의 증명을 나타내는 SelfProof 클래스가 있습니다. 이 클래스가 어떻게 사용되는지 보려면 이 코드의 테스트 파일을 확인해 보겠습니다. 코드의 모든 부분 대신 여기서 설명해야 할 몇 가지 구체적인 부분을 설명하겠습니다.
+
+```
+let proof = await CalculateScore.baseCase(secureHash, answers, user2Answers, index)
+let publicOutputs = proof.publicOutput
+console.log("starting recursion score:", publicOutputs.corrects.toString())
+
+for (let i = 0; i < 3; i++) {
+    index = index.mul(10)
+    secureHash = Poseidon.hash([answers, user2Answers, index])
+
+    proof = await CalculateScore.calculate(secureHash, proof, answers, user2Answers, index)
+    publicOutputs = proof.publicOutput
+
+    console.log("recursion score:", publicOutputs.corrects.toString())
+}
+```
+
+첫 번째 줄에서는 파일에 정의된 매개변수가 있는 baseCase로 증명이 시작됩니다. 공개 출력은 증명 객체에서 추출됩니다. 재귀적으로 증명은 for 루프에서 계산되고 업데이트되며 각 반복마다 점수가 인쇄됩니다.
+
+코드의 다른 부분을 읽으면 개인정보 보호에 필요한 모든 계산을 ZkProgram API로 만드는 방법을 확인할 수 있습니다.
+
+# AccountUpdate
+
+미나에서 계정 업데이트는 AccountUpdate 클래스가 있는 트랜잭션 내에서 처리됩니다. 또한 AccountUpdate 클래스로 구현되는 ZkApp의 속성은 매우 많습니다. 이 속성을 배우려면 문서를 참조하세요.
+
+```
+import { DeployArgs, SmartContract, State, state, Permissions, method, Field, PublicKey, AccountUpdate, UInt64 } from "o1js";
+import { ZKLContract } from "../tokens/zkl/ZKLContract";
+
+export class BountySC extends SmartContract {
+    @state(Field) deployer = State<Field>();
+    @state(Field) funder = State<Field>();
+
+    async deploy(args: DeployArgs) {
+        super.deploy(args);
+        this.account.permissions.set({
+            ...Permissions.default(),
+            editState: Permissions.proofOrSignature(),
+        });
+    }
+
+    /**
+     * Claims the bounty by transferring the ZKL tokens to the claimer's address.
+     *
+     * @param zklTokenAddr - The address of the ZKL token contract.
+     */
+    @method async claim(zklTokenAddr: PublicKey) {
+        // ensure that the sender is the claimed one, by requiring a signature
+        const claimer: PublicKey = this.sender.getAndRequireSignature();
+        const ac: AccountUpdate = AccountUpdate.createSigned(claimer);
+        this.approve(ac);
+
+        const zklTokenSC: ZKLContract = new ZKLContract(zklTokenAddr);
+        let au = AccountUpdate.create(this.address, zklTokenSC.tokenId);
+        let balance: UInt64 = au.account.balance.getAndRequireEquals();
+
+        zklTokenSC.sendFromTo(this.address, claimer, balance);
+    }
+
+    /**
+     * Asserts that the verification key of the smart contract is the expected one.
+     * This is done by calling an empty method on the smart contract.
+     * Method call = Account Update with proof of authorization.
+     */
+    @method async assertVerificationKeyIsCorrect() {
+        // must remain empty. no need for assertions or state changes
+    }
+
+}
+
+```
+
+여기에서 this.account를 사용하여 계정 설정에 액세스할 수 있습니다. 여기에서 권한의 편집 상태 속성은 증명 또는 서명 필요로 설정되어 있고, 다른 속성은 기본값으로 설정되어 있습니다. 또한 문서에서 볼 수 있는 계정 업데이트의 고급 기능도 있습니다. 그러나 토큰 컨트랙트 및 기타 클래스의 일부 애플리케이션은 현재 감사 프로세스 중입니다(예: 토큰 표준). 조만간 업데이트될 예정이므로 계정 업데이트를 통해 체인에서 새로운 토큰을 발행하고 유연한 작업을 수행할 수 있게 될 것입니다!
+
+```
+import { SecondaryZkApp } from './SecondaryZkApp.js';
+
+import {
+  Field,
+  SmartContract,
+  state,
+  State,
+  method,
+  PublicKey,
+  Permissions,
+  TransactionVersion,
+} from 'o1js';
+
+export class ProofsOnlyZkApp extends SmartContract {
+  @state(Field) num = State<Field>();
+  @state(Field) calls = State<Field>();
+
+  async deploy() {
+    await super.deploy();
+    this.account.permissions.set({
+      ...Permissions.default(),
+      setDelegate: Permissions.proof(),
+      setPermissions: Permissions.proof(),
+      setVerificationKey: {
+        auth: Permissions.proof(),
+        txnVersion: TransactionVersion.current(),
+      },
+      setZkappUri: Permissions.proof(),
+      setTokenSymbol: Permissions.proof(),
+      incrementNonce: Permissions.proof(),
+      setVotingFor: Permissions.proof(),
+      setTiming: Permissions.proof(),
+    });
+  }
+
+  @method async init() {
+    this.account.provedState.getAndRequireEquals();
+    this.account.provedState.get().assertFalse();
+
+    super.init();
+    this.num.set(Field(1));
+    this.calls.set(Field(0));
+  }
+
+  @method async add(incrementBy: Field) {
+    this.account.provedState.getAndRequireEquals();
+    this.account.provedState.get().assertTrue();
+
+    const num = this.num.getAndRequireEquals();
+    this.num.set(num.add(incrementBy));
+
+    await this.incrementCalls();
+  }
+
+  @method async incrementCalls() {
+    this.account.provedState.getAndRequireEquals();
+    this.account.provedState.get().assertTrue();
+
+    const calls = this.calls.getAndRequireEquals();
+    this.calls.set(calls.add(Field(1)));
+  }
+
+  @method async callSecondary(secondaryAddr: PublicKey) {
+    this.account.provedState.getAndRequireEquals();
+    this.account.provedState.get().assertTrue();
+
+    const secondaryContract = new SecondaryZkApp(secondaryAddr);
+    const num = this.num.getAndRequireEquals();
+
+    await secondaryContract.add(num);
+
+    // NOTE this gets the state at the start of the transaction
+    this.num.set(secondaryContract.num.get());
+
+    await this.incrementCalls();
+  }
+}
+```
+
+우선 예제 폴더를 확인하는 것이 좋습니다. 여기에는 로컬 컴퓨터에서 코드를 테스트할 수 있는 꽤 교육적인 콘텐츠가 있습니다. 위의 코드에서 볼 수 있듯이 권한은 증명 전용으로 설정되어 있으므로 유효한 증명과 함께 계정 업데이트를 제공하는 당사자만 계정을 업데이트할 수 있습니다.
+
+# Merkle Tree.
+
+머클 트리는 널리 사용되는 데이터 구조입니다. 머클 트리의 특성은 여러 가지 이유로 유용하기 때문에 많은 암호화폐 시스템에서 채택되고 있습니다. 모듈 1에서 머클 트리가 무엇이며, 왜 사용되는지 살펴보았습니다. 미나 프로토콜에서 머클 트리는 데이터를 커밋하는 데 사용됩니다.
+
+미나 프로토콜의 MerkleTree 클래스에 대한 기본적인 내용은 문서와 API 참조 부분을 참고하세요. MerkleTree 클래스에는 유용하게 사용할 수 있는 몇 가지 헬퍼 함수/클래스가 있습니다.
+
+# MerkleWitness
+
+머클 증인은 특정 요소가 머클 트리의 일부인지 확인하는 데 필요한 정보를 제공합니다. 이는 일반적으로 리프 노드의 직접 경로에 있는 노드를 제외한 리프 노드에서 루트까지의 해시 목록으로, 머클 루트를 독립적으로 계산하고 알려진 좋은 루트와 비교하여 확인할 수 있습니다.
+
+# MerkleMap
+
+머클 맵은 지도와 같은 구조로 키를 값과 연결하여 머클 트리의 개념을 확장한 것입니다. 머클 맵의 각 리프는 키-값 쌍의 해시이며, 트리 구조는 키의 존재(또는 존재하지 않음)를 효율적으로 증명할 수 있게 해줍니다.
+
+# MerkleMapWitness
+
+머클 증인과 마찬가지로, 머클맵 증인은 머클 맵에서 키-값 쌍의 존재 여부와 정확성을 확인하는 데 필요한 해시와 경로 정보를 제공합니다.
+
+```
+import { Field, MerkleTree, MerkleWitness } from 'o1js';
+
+// Example data
+const data = [Field(1), Field(2), Field(3), Field(4)];
+
+let tree = new MerkleTree(3);
+
+
+tree.fill(data);
+
+// Compute and get the root of the tree.
+let root = tree.getRoot();
+
+// Get the witness of element with index 0.
+let myWitness = tree.getWitness(0n);
+
+// witness for 0th element.
+class witnessForZero extends MerkleWitness(3){};
+
+// Instantiate the witness object for zeroth element with the extracted witness previously.
+let someWitness = new witnessForZero(myWitness);
+
+// Calculate the root with combining the data and witness you have.
+let calculatedRoot = someWitness.calculateRoot(Field(1));
+
+// See that both roots of Merkle tree are same.
+console.log(root.equals(calculatedRoot).toBoolean());
+
+```
+
+# Example: MinaNFT
+
+```
+import { Field, MerkleWitness, ZkProgram, method, SmartContract } from "o1js";
+
+function TreeCalculationFunction(height: number) {
+  class MerkleTreeWitness extends MerkleWitness(height) {}
+
+  const TreeCalculation = ZkProgram({
+    name: "TreeCalculation",
+    publicInput: Field,
+
+    methods: {
+      check: {
+        privateInputs: [MerkleTreeWitness, Field],
+
+        method(root: Field, witness: MerkleTreeWitness, value: Field) {
+          const calculatedRoot = witness.calculateRoot(value);
+          calculatedRoot.assertEquals(root);
+        },
+      },
+    },
+  });
+  return TreeCalculation;
+}
+
+function TreeVerifierFunction(height: number) {
+  const TreeCalculation = TreeCalculationFunction(height);
+  class TreeProof extends ZkProgram.Proof(TreeCalculation) {}
+
+  class TreeVerifier extends SmartContract {
+    @method verifyRedactedTree(proof: TreeProof) {
+      proof.verify();
+    }
+  }
+  return TreeVerifier;
+}
+
+async function main() {
+  const TreeCalculation = TreeCalculationFunction(4);
+  const TreeVerifier = TreeVerifierFunction(4);
+  await TreeCalculation.compile();
+  await TreeVerifier.compile();
+}
+
+main();
+```
+
+위의 스니펫에서 루트 계산은 ZkProgram(또는 호출, 증명 가능한 구조)에서 수행하도록 되어 있습니다. 작성된 또 다른 함수는 트리 계산의 증명을 가져와 SmartContract를 통해 온체인에 제출합니다.
